@@ -23,22 +23,32 @@ import NotFoundPage from './pages/NotFoundPage';
 const PublicOnlyRoute = ({ children }) => {
   const { currentUser, isAuthenticated, isProfileComplete } = useAuth();
   
+  // For debugging
+  React.useEffect(() => {
+    console.log('PublicOnlyRoute - Auth state:', { 
+      isAuthenticated, 
+      currentUser,
+      isProfileComplete,
+      profileType: currentUser?.profileType
+    });
+  }, [isAuthenticated, currentUser, isProfileComplete]);
+  
   // Return appropriate redirect or children
   return (
     <>
       {isAuthenticated ? (
         <>
           {/* If profile is not complete */}
-          {!isProfileComplete && <Navigate to="/profile-setup" replace />}
+          {currentUser?.profileCompletionRequired && <Navigate to="/profile-setup" replace />}
           
           {/* If profile is complete, redirect based on user type */}
-          {isProfileComplete && currentUser?.profileType === 'Job Seeker' && 
+          {!currentUser?.profileCompletionRequired && currentUser?.profileType === 'Job Seeker' && 
             <Navigate to="/job-seeker-dashboard" replace />}
-          {isProfileComplete && currentUser?.profileType === 'Recruiter' && 
+          {!currentUser?.profileCompletionRequired && currentUser?.profileType === 'Recruiter' && 
             <Navigate to="/recruiter-dashboard" replace />}
-          {isProfileComplete && currentUser?.profileType === 'Networker' && 
+          {!currentUser?.profileCompletionRequired && currentUser?.profileType === 'Networker' && 
             <Navigate to="/networking-dashboard" replace />}
-          {isProfileComplete && (!currentUser?.profileType || 
+          {!currentUser?.profileCompletionRequired && (!currentUser?.profileType || 
             !['Job Seeker', 'Recruiter', 'Networker'].includes(currentUser?.profileType)) && 
             <Navigate to="/dashboard" replace />}
         </>
@@ -53,16 +63,32 @@ const PublicOnlyRoute = ({ children }) => {
 function App() {
   const { currentUser, isAuthenticated } = useAuth();
   
+  // For debugging
+  React.useEffect(() => {
+    if (currentUser) {
+      console.log('App - Current user state:', { 
+        profileType: currentUser.profileType,
+        profileCompletionRequired: currentUser.profileCompletionRequired
+      });
+    }
+  }, [currentUser]);
+  
   return (
     <Router>
       <DarkModeProvider>
         {/* If user is authenticated and on root path, redirect using Route instead */}
         {window.location.pathname === '/' && currentUser && (
           <>
-            {currentUser.profileType === 'Job Seeker' && <Navigate to="/job-seeker-dashboard" replace />}
-            {currentUser.profileType === 'Recruiter' && <Navigate to="/recruiter-dashboard" replace />}
-            {currentUser.profileType === 'Networker' && <Navigate to="/networking-dashboard" replace />}
-            {!currentUser.profileType && <Navigate to="/dashboard" replace />}
+            {currentUser.profileCompletionRequired ? (
+              <Navigate to="/profile-setup" replace />
+            ) : (
+              <>
+                {currentUser.profileType === 'Job Seeker' && <Navigate to="/job-seeker-dashboard" replace />}
+                {currentUser.profileType === 'Recruiter' && <Navigate to="/recruiter-dashboard" replace />}
+                {currentUser.profileType === 'Networker' && <Navigate to="/networking-dashboard" replace />}
+                {!currentUser.profileType && <Navigate to="/dashboard" replace />}
+              </>
+            )}
           </>
         )}
         <div className="flex flex-col min-h-screen">
@@ -117,6 +143,8 @@ function App() {
                   <NetworkingPage />
                 </ProtectedRoute>
               } />
+              
+              {/* Role-specific dashboards */}
               <Route path="/job-seeker-dashboard" element={
                 <ProtectedRoute requireProfileComplete={true}>
                   <JobSeekerDashboard />

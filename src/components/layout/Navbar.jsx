@@ -25,14 +25,19 @@ const Navbar = () => {
   };
 
   const handleRoleSwitch = async (newRole) => {
-    const success = await switchUserRole(newRole);
+    // Determine internal role name
+    let internalRole = newRole;
+    if (newRole === 'Recruiter (Companies Only)') internalRole = 'Recruiter';
+    if (newRole === 'Networking (Founder, Investor)') internalRole = 'Networker';
+    
+    const success = await switchUserRole(internalRole);
     if (success) {
       // Navigate to the appropriate dashboard based on the new role
-      if (newRole === 'Job Seeker') {
+      if (internalRole === 'Job Seeker') {
         navigate('/job-seeker-dashboard');
-      } else if (newRole === 'Recruiter (Companies Only)') {
+      } else if (internalRole === 'Recruiter') {
         navigate('/recruiter-dashboard');
-      } else if (newRole === 'Networking (Founder, Investor)') {
+      } else if (internalRole === 'Networker') {
         navigate('/networking-dashboard');
       } else {
         navigate('/dashboard');
@@ -51,9 +56,23 @@ const Navbar = () => {
           <div className="ml-10 hidden md:flex space-x-6">
             {currentUser ? (
               <>
-                <Link to="/dashboard" className="text-gray-700 hover:text-blue-600">
-                  Dashboard
-                </Link>
+                {currentUser.profileType === 'Job Seeker' ? (
+                  <Link to="/job-seeker-dashboard" className="text-gray-700 hover:text-blue-600">
+                    Dashboard
+                  </Link>
+                ) : currentUser.profileType === 'Recruiter' ? (
+                  <Link to="/recruiter-dashboard" className="text-gray-700 hover:text-blue-600">
+                    Dashboard
+                  </Link>
+                ) : currentUser.profileType === 'Networker' ? (
+                  <Link to="/networking-dashboard" className="text-gray-700 hover:text-blue-600">
+                    Dashboard
+                  </Link>
+                ) : (
+                  <Link to="/dashboard" className="text-gray-700 hover:text-blue-600">
+                    Dashboard
+                  </Link>
+                )}
                 <Link to="/jobs" className="text-gray-700 hover:text-blue-600">
                   Jobs
                 </Link>
@@ -151,15 +170,59 @@ const Navbar = () => {
                     <Link to="/profile" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
                       My Profile
                     </Link>
-                    <Link to="/dashboard" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
-                      Dashboard
-                    </Link>
-                    <button 
-                      onClick={() => setIsProfileMenuOpen(false)}
-                      className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      Switch Role
-                    </button>
+                    
+                    {/* Link to appropriate dashboard based on user type */}
+                    {currentUser.profileType === 'Job Seeker' ? (
+                      <Link to="/job-seeker-dashboard" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
+                        Dashboard
+                      </Link>
+                    ) : currentUser.profileType === 'Recruiter' ? (
+                      <Link to="/recruiter-dashboard" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
+                        Dashboard
+                      </Link>
+                    ) : currentUser.profileType === 'Networker' ? (
+                      <Link to="/networking-dashboard" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
+                        Dashboard
+                      </Link>
+                    ) : (
+                      <Link to="/dashboard" className="block py-2 px-4 text-sm text-gray-700 hover:bg-gray-100">
+                        Dashboard
+                      </Link>
+                    )}
+                    
+                    {/* Role Switcher */}
+                    <div className="relative">
+                      <button 
+                        className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => {
+                          document.getElementById('roleSwitcherMenu').classList.toggle('hidden');
+                        }}
+                      >
+                        Switch Role
+                      </button>
+                      
+                      <div id="roleSwitcherMenu" className="absolute hidden right-full top-0 w-48 bg-white rounded-md shadow-lg z-50">
+                        <button 
+                          onClick={() => handleRoleSwitch('Job Seeker')}
+                          className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Job Seeker
+                        </button>
+                        <button 
+                          onClick={() => handleRoleSwitch('Recruiter')}
+                          className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Recruiter
+                        </button>
+                        <button 
+                          onClick={() => handleRoleSwitch('Networker')}
+                          className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Networker
+                        </button>
+                      </div>
+                    </div>
+                    
                     <button 
                       onClick={handleSignOut}
                       className="block w-full text-left py-2 px-4 text-sm text-gray-700 hover:bg-gray-100"

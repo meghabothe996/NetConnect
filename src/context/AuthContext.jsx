@@ -13,7 +13,6 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [profileCompletionPercentage, setProfileCompletionPercentage] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   // Predefined Career Assistant Q&A
@@ -115,15 +114,6 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(updatedUser);
       setIsAuthenticated(true);
       
-      // Update profile completion percentage
-      if (profileData.profileCompletionPercentage !== undefined) {
-        setProfileCompletionPercentage(profileData.profileCompletionPercentage);
-      } else {
-        // Calculate based on filled fields if not provided
-        const calculatedPercentage = calculateProfileCompletion(updatedUser);
-        setProfileCompletionPercentage(calculatedPercentage);
-      }
-      
       // Save updated user to localStorage
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
@@ -137,87 +127,6 @@ export const AuthProvider = ({ children }) => {
       return false;
     }
   }, [currentUser]);
-  
-  // Calculate profile completion percentage
-  const calculateProfileCompletion = (user) => {
-    if (!user) return 0;
-    
-    // Define fields required based on user type
-    let requiredFields = ['profileType'];
-    let completedFields = 0;
-    let totalFields = 1; // profileType is always required
-    
-    if (user.profileType) {
-      completedFields++; // profileType is filled
-      
-      if (user.profileType === 'Job Seeker') {
-        requiredFields = [
-          ...requiredFields,
-          'employmentStatus',
-          'education',
-          'skills',
-          'preferredRoles',
-          'locationPreference',
-          'jobPreferences'
-        ];
-        totalFields += 6;
-        
-        // Check completed fields for Job Seeker
-        if (user.employmentStatus) completedFields++;
-        if (user.education && user.education.length > 0) completedFields++;
-        if (user.skills && user.skills.length > 0) completedFields++;
-        if ((user.preferredRoles && user.preferredRoles.length > 0) || 
-            (user.customRoles && user.customRoles.length > 0)) completedFields++;
-        if (user.locationPreference) completedFields++;
-        if (user.jobPreferences && user.jobPreferences.jobType) completedFields++;
-      } 
-      else if (user.profileType === 'Recruiter' || user.profileType === 'Recruiter (Companies Only)') {
-        requiredFields = [
-          ...requiredFields,
-          'companyVerified',
-          'hiringFor'
-        ];
-        totalFields += 2;
-        
-        // Check completed fields for Recruiter
-        if (user.companyVerified) completedFields++;
-        if (user.hiringFor && user.hiringFor.length > 0) completedFields++;
-      } 
-      else if (user.profileType === 'Networker' || user.profileType === 'Networking (Founder, Investor)') {
-        if (user.isFounder !== undefined) completedFields++;
-        totalFields += 1;
-        
-        if (user.isFounder) {
-          requiredFields = [
-            ...requiredFields,
-            'founderDetails.companyName',
-            'founderDetails.companyStage'
-          ];
-          totalFields += 2;
-          
-          if (user.founderDetails) {
-            if (user.founderDetails.companyName) completedFields++;
-            if (user.founderDetails.companyStage) completedFields++;
-          }
-        } else {
-          requiredFields = [
-            ...requiredFields,
-            'investorDetails.interestedIndustries',
-            'investorDetails.fundingPreferences'
-          ];
-          totalFields += 2;
-          
-          if (user.investorDetails) {
-            if (user.investorDetails.interestedIndustries && 
-                user.investorDetails.interestedIndustries.length > 0) completedFields++;
-            if (user.investorDetails.fundingPreferences) completedFields++;
-          }
-        }
-      }
-    }
-    
-    return Math.round((completedFields / totalFields) * 100);
-  };
   
   // Mock resume processing function
   const processResume = async (file) => {
@@ -264,7 +173,6 @@ export const AuthProvider = ({ children }) => {
       const newUser = {
         id: '1234',
         ...userData,
-        profileCompletionPercentage: 0,
         profileCompletionRequired: true // Set flag to indicate onboarding is needed
       };
       
@@ -370,7 +278,6 @@ export const AuthProvider = ({ children }) => {
           'Reduced API response time by 40% through code optimization and caching strategies',
           'Contributed to open-source projects with 500+ GitHub stars'
         ],
-        profileCompletionPercentage: 100,
         profileCompletionRequired: false // Profile is complete
       };
       
@@ -532,16 +439,18 @@ export const AuthProvider = ({ children }) => {
       // Save to localStorage
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
-      // Recalculate profile completion percentage
-      const calculatedPercentage = calculateProfileCompletion(updatedUser);
-      setProfileCompletionPercentage(calculatedPercentage);
-      
       return true;
     } catch (err) {
       console.error('Error switching user role:', err);
       setError(err.message || 'Failed to switch user role');
       return false;
     }
+  }, [currentUser]);
+  
+  // Function to determine if profile is complete
+  const isProfileComplete = useCallback(() => {
+    if (!currentUser) return false;
+    return !currentUser.profileCompletionRequired;
   }, [currentUser]);
   
   useEffect(() => {
@@ -552,10 +461,6 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(user);
         setCurrentUser(parsedUser);
         setIsAuthenticated(true);
-        
-        // Calculate profile completion
-        const percentage = calculateProfileCompletion(parsedUser);
-        setProfileCompletionPercentage(percentage);
       }
       setLoading(false);
     };
@@ -572,10 +477,10 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUserProfile,
-    profileCompletionPercentage,
     processResume,
     getCareerAssistantResponse,
-    switchUserRole
+    switchUserRole,
+    isProfileComplete: isProfileComplete()
   };
   
   return (

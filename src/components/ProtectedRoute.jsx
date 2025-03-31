@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,7 +8,19 @@ import { useAuth } from '../context/AuthContext';
  * Can also check if user profile is complete for routes that require it
  */
 const ProtectedRoute = ({ children, requireProfileComplete = false }) => {
-  const { isAuthenticated, currentUser, loading } = useAuth();
+  const { isAuthenticated, currentUser, loading, isProfileComplete } = useAuth();
+  
+  useEffect(() => {
+    // Log the current state for debugging
+    if (requireProfileComplete) {
+      console.log('ProtectedRoute - Auth state:', { 
+        isAuthenticated,
+        currentUser,
+        isProfileComplete,
+        profileCompletionRequired: currentUser?.profileCompletionRequired 
+      });
+    }
+  }, [isAuthenticated, currentUser, isProfileComplete, requireProfileComplete]);
   
   // Use conditional rendering pattern
   return (
@@ -21,8 +33,7 @@ const ProtectedRoute = ({ children, requireProfileComplete = false }) => {
       ) : !isAuthenticated ? (
         // Not authenticated - redirect to login
         <Navigate to="/login" replace />
-      ) : requireProfileComplete && 
-          (!currentUser.isProfileComplete || currentUser.profileCompletionRequired) ? (
+      ) : requireProfileComplete && currentUser?.profileCompletionRequired ? (
         // Profile completion required but not complete - redirect to setup
         <Navigate to="/profile-setup" replace />
       ) : (

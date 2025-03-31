@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
-  const { currentUser, updateUserProfile, profileCompletionPercentage, processResume, getCareerAssistantResponse } = useAuth();
+  const { currentUser, updateUserProfile, processResume, getCareerAssistantResponse } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     // General fields
@@ -119,7 +119,6 @@ const ProfileSetup = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingResume, setIsProcessingResume] = useState(false);
-  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
   
   // Add OTP state for company verification
@@ -141,12 +140,6 @@ const ProfileSetup = () => {
   useEffect(() => {
     sessionStorage.setItem('profileSetupData', JSON.stringify(formData));
   }, [formData]);
-  
-  // Calculate progress percentage
-  useEffect(() => {
-    const totalSteps = getStepCount();
-    setProgress(((currentStep + 1) / totalSteps) * 100);
-  }, [currentStep]);
   
   // Set up Company OTP timer
   useEffect(() => {
@@ -603,12 +596,15 @@ const ProfileSetup = () => {
     if (validateStep()) {
       setIsLoading(true);
       try {
-        // Calculate and log profile completion percentage for debugging
-        const completionPercentage = calculateProfileCompletion();
-        console.log("Profile completion percentage:", completionPercentage);
-        
         // Process all data and prepare final form data before saving
         let finalFormData = { ...formData };
+        
+        // Ensure education data is consistent in both fields
+        if (finalFormData.education && finalFormData.education.length > 0) {
+          finalFormData.educations = [...finalFormData.education];
+        } else if (finalFormData.educations && finalFormData.educations.length > 0) {
+          finalFormData.education = [...finalFormData.educations];
+        }
         
         // Process resume upload
         if (formData.resumeFile) {
@@ -688,8 +684,11 @@ const ProfileSetup = () => {
           profileCompletionRequired: false
         };
         
+        console.log('Updating user profile with data:', finalFormData);
+        
         // Update user profile with all changes at once
-        await updateUserProfile(finalFormData);
+        const updateResult = await updateUserProfile(finalFormData);
+        console.log('Profile update result:', updateResult);
         
         // Process AI response for job seekers only
         if (finalFormData.profileType === 'Job Seeker') {
@@ -2931,28 +2930,127 @@ const ProfileSetup = () => {
     </div>
   );
 
+  // Add the missing renderSkills function
+  const renderSkills = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-semibold text-gray-800">What skills do you have?</h2>
+      <p className="text-gray-600">Select or add skills relevant to your profession.</p>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Popular Skills
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {['JavaScript', 'Python', 'Java', 'React', 'Node.js', 'Angular', 'SQL', 'Data Analysis', 
+              'Product Management', 'UI/UX Design', 'Digital Marketing', 'Cloud Services'].map((skill) => (
+              <div
+                key={skill}
+                onClick={() => {
+                  if (formData.skills && formData.skills.includes(skill)) {
+                    setFormData({
+                      ...formData,
+                      skills: formData.skills.filter(s => s !== skill)
+                    });
+                  } else {
+                    setFormData({
+                      ...formData,
+                      skills: [...(formData.skills || []), skill]
+                    });
+                  }
+                }}
+                className={`px-3 py-2 border rounded-md cursor-pointer text-sm ${
+                  formData.skills && formData.skills.includes(skill)
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 text-gray-700 hover:border-blue-300'
+                }`}
+              >
+                {skill}
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div>
+          <label htmlFor="customSkill" className="block text-sm font-medium text-gray-700">
+            Add custom skill
+          </label>
+          <div className="mt-1 flex rounded-md shadow-sm">
+            <input
+              type="text"
+              id="customSkill"
+              className="flex-1 min-w-0 block w-full rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g. Agile Development"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const value = e.target.value.trim();
+                  if (value && (!formData.skills || !formData.skills.includes(value))) {
+                    setFormData({
+                      ...formData,
+                      skills: [...(formData.skills || []), value]
+                    });
+                    e.target.value = '';
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                const input = document.getElementById('customSkill');
+                const value = input.value.trim();
+                if (value && (!formData.skills || !formData.skills.includes(value))) {
+                  setFormData({
+                    ...formData,
+                    skills: [...(formData.skills || []), value]
+                  });
+                  input.value = '';
+                }
+              }}
+              className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 rounded-r-md hover:bg-gray-100"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+        
+        {formData.skills && formData.skills.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Your Skills:</h3>
+            <div className="flex flex-wrap gap-2">
+              {formData.skills.map((skill, index) => (
+                <div key={index} className="bg-blue-50 text-blue-700 border border-blue-300 rounded-md px-2 py-1 flex items-center">
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        skills: formData.skills.filter((_, i) => i !== index)
+                      });
+                    }}
+                    className="ml-1 text-blue-500 hover:text-blue-700"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {errors.skills && <p className="mt-1 text-sm text-red-600">{errors.skills}</p>}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-          {/* Progress Indicator */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">
-                Step {currentStep + 1} of {getStepCount()}
-              </span>
-              <span className="text-sm font-medium text-gray-700">
-                {Math.round(progress)}% Complete
-              </span>
-            </div>
-            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
-              <div 
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-          </div>
-          
           {/* Form */}
           <div className="mt-6">
             {renderStepContent()}
